@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser-Use Agent 实时监控</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 20px;
+        }
+        .control-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .monitor-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .monitor-panel h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .log-container {
+            background: #1e1e1e;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .log-entry.connection { color: #a6e22e; }
+        .log-entry.status { color: #66d9ef; }
+        .log-entry.log { color: #f8f8f2; }
+        .log-entry.step { color: #fd971f; }
+        .log-entry.error { color: #f92672; }
+        .log-entry.warning { color: #e6db74; }
+        .log-entry.pong { color: #ae81ff; }
+        .timestamp {
+            color: #75715e;
+            margin-right: 10px;
+        }
+        .clear-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        .clear-btn:hover {
+            background: #5a6268;
+        }
+        .agent-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .agent-info h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .agent-info p {
+            margin: 5px 0;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Browser-Use Agent 实时监控</h1>
+            <p>通过WebSocket实时监控Agent的推理过程</p>
+        </div>
+        
+        <div class="content">
+            <!-- 控制面板 -->
+            <div class="control-panel">
+                <h3>🎮 控制面板</h3>
+                <div class="form-group">
+                    <label for="cdpUrl">Chrome DevTools URL:</label>
+                    <input type="text" id="cdpUrl" value="http://127.0.0.1:9222" placeholder="Chrome DevTools Protocol URL">
+                </div>
+                <div class="form-group">
+                    <label for="model">模型:</label>
+                    <select id="model">
+                        <option value="qwen2.5:7b">qwen2.5:7b</option>
+                        <option value="qwen3:4b">qwen3:4b</option>
+                        <option value="qwen2.5:14b">qwen2.5:14b</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="host">Ollama 服务地址:</label>
+                    <input type="text" id="host" value="http://127.0.0.1:11434" placeholder="Ollama服务地址">
+                </div>
+                <div class="form-group">
+                    <label for="task">任务描述:</label>
+                    <textarea id="task" placeholder="请输入要执行的任务描述...">前往百度首页，搜索'人工智能'，获取前3个搜索结果</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="maxSteps">最大步骤:</label>
+                    <input type="number" id="maxSteps" value="10" min="1" max="50">
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="createAgent()">创建Agent</button>
+                    <button class="btn btn-success" onclick="runAgent()" id="runBtn" disabled>运行Agent</button>
+                    <button class="btn btn-danger" onclick="removeAgent()" id="removeBtn" disabled>移除Agent</button>
+                    <button class="btn btn-primary" onclick="runTask()">直接运行任务</button>
+                </div>
+            </div>
+            
+            <!-- 连接状态 -->
+            <div id="connectionStatus" class="status disconnected">
+                🔌 未连接到WebSocket
+            </div>
+            
+            <!-- Agent信息 -->
+            <div id="agentInfo" class="agent-info" style="display: none;">
+                <h4>🤖 Agent 信息</h4>
+                <p><strong>ID:</strong> <span id="agentId">-</span></p>
+                <p><strong>状态:</strong> <span id="agentStatus">-</span></p>
+                <p><strong>任务:</strong> <span id="agentTask">-</span></p>
+            </div>
+            
+            <!-- 监控面板 -->
+            <div class="monitor-panel">
+                <h3>📊 实时监控日志</h3>
+                <button class="clear-btn" onclick="clearLogs()">清空日志</button>
+                <div id="logContainer" class="log-container">
+                    <div class="log-entry">等待连接...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let currentAgentId = null;
+        let isConnected = false;
+        
+        // 更新连接状态
+        function updateConnectionStatus(status, message) {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.className = `status ${status}`;
+            statusDiv.innerHTML = message;
+        }
+        
+        // 更新Agent信息
+        function updateAgentInfo(agentId, status, task) {
+            const agentInfo = document.getElementById('agentInfo');
+            document.getElementById('agentId').textContent = agentId;
+            document.getElementById('agentStatus').textContent = status;
+            document.getElementById('agentTask').textContent = task;
+            agentInfo.style.display = 'block';
+        }
+        
+        // 添加日志条目
+        function addLogEntry(message, type = 'log') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 清空日志
+        function clearLogs() {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.innerHTML = '<div class="log-entry">日志已清空...</div>';
+        }
+        
+        // 连接到WebSocket
+        function connectWebSocket(agentId) {
+            if (websocket) {
+                websocket.close();
+            }
+            
+            const wsUrl = `ws://localhost:8000/ws/${agentId}`;
+            updateConnectionStatus('connecting', '🔄 正在连接到WebSocket...');
+            
+            try {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    isConnected = true;
+                    updateConnectionStatus('connected', '✅ 已连接到WebSocket');
+                    addLogEntry(`已连接到Agent: ${agentId}`, 'connection');
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (e) {
+                        addLogEntry(`收到非JSON消息: ${event.data}`, 'log');
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    isConnected = false;
+                    updateConnectionStatus('disconnected', '🔌 WebSocket连接已关闭');
+                    addLogEntry('WebSocket连接已关闭', 'connection');
+                };
+                
+                websocket.onerror = function(error) {
+                    isConnected = false;
+                    updateConnectionStatus('disconnected', '❌ WebSocket连接错误');
+                    addLogEntry(`WebSocket错误: ${error}`, 'error');
+                };
+                
+            } catch (error) {
+                updateConnectionStatus('disconnected', '❌ 无法创建WebSocket连接');
+                addLogEntry(`连接失败: ${error}`, 'error');
+            }
+        }
+        
+        // 处理WebSocket消息
+        function handleWebSocketMessage(data) {
+            const type = data.type || 'unknown';
+            const message = data.message || '';
+            const timestamp = data.timestamp || Date.now();
+            
+            switch (type) {
+                case 'connection':
+                    addLogEntry(message, 'connection');
+                    break;
+                case 'status':
+                    addLogEntry(message, 'status');
+                    break;
+                case 'log':
+                    addLogEntry(message, 'log');
+                    break;
+                case 'step':
+                    addLogEntry(message, 'step');
+                    break;
+                case 'error':
+                    addLogEntry(message, 'error');
+                    break;
+                case 'warning':
+                    addLogEntry(message, 'warning');
+                    break;
+                case 'pong':
+                    addLogEntry(message, 'pong');
+                    break;
+                default:
+                    addLogEntry(`未知消息类型 ${type}: ${message}`, 'log');
+            }
+        }
+        
+        // 创建Agent
+        async function createAgent() {
+            const cdpUrl = document.getElementById('cdpUrl').value;
+            const model = document.getElementById('model').value;
+            const host = document.getElementById('host').value;
+            const task = document.getElementById('task').value;
+            const maxSteps = document.getElementById('maxSteps').value;
+            
+            if (!task.trim()) {
+                alert('请输入任务描述');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8000/create_agent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cdp_url: cdpUrl,
+                        model: model,
+                        host: host,
+                        task: task,
+                        max_steps: parseInt(maxSteps),
+                        headless: true,
+                        verbose: false
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentAgentId = data.result.agent_id;
+                    updateAgentInfo(currentAgentId, '已创建', task);
+                    addLogEntry(`Agent创建成功: ${currentAgentId}`, 'status');
+                    
+                    // 启用相关按钮
+                    document.getElementById('runBtn').disabled = false;
+                    document.getElementById('removeBtn').disabled = false;
+                    
+                    // 连接到WebSocket
+                    connectWebSocket(currentAgentId);
+                    
+                } else {
+                    alert(`创建Agent失败: ${data.message}`);
+                }
+                
+            } catch (error) {
+                alert(`创建Agent异常: ${error}`);
+            }
+        }
+        
+        // 运行Agent
+        async function runAgent() {
+            if (!currentAgentId) {
+                alert('请先创建Agent');
+                return;
+            }
+            
+            try {
+                addLogEntry(`开始运行Agent: ${currentAgentId}`, 'status');
+                
+                const response = await fetch(`http://localhost:8000/run_agent/${currentAgentId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry(`Agent运行完成: ${data.message}`, 'status');
+                    updateAgentInfo(currentAgentId, '已完成', document.getElementById('agentTask').textContent);
+                } else {
+                    addLogEntry(`Agent运行失败: ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                addLogEntry(`运行Agent异常: ${error}`, 'error');
+            }
+        }
+        
+        // 移除Agent
+        async function removeAgent() {
+            if (!currentAgentId) {
+                alert('没有可移除的Agent');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:8000/remove_agent/${currentAgentId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry(`Agent移除成功: ${data.message}`, 'status');
+                    
+                    // 关闭WebSocket连接
+                    if (websocket) {
+                        websocket.close();
+                    }
+                    
+                    // 重置状态
+                    currentAgentId = null;
+                    document.getElementById('agentInfo').style.display = 'none';
+                    document.getElementById('runBtn').disabled = true;
+                    document.getElementById('removeBtn').disabled = true;
+                    
+                    updateConnectionStatus('disconnected', '🔌 未连接到WebSocket');
+                    
+                } else {
+                    addLogEntry(`Agent移除失败: ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                addLogEntry(`移除Agent异常: ${error}`, 'error');
+            }
+        }
+        
+        // 直接运行任务
+        async function runTask() {
+            const cdpUrl = document.getElementById('cdpUrl').value;
+            const model = document.getElementById('model').value;
+            const host = document.getElementById('host').value;
+            const task = document.getElementById('task').value;
+            const maxSteps = document.getElementById('maxSteps').value;
+            
+            if (!task.trim()) {
+                alert('请输入任务描述');
+                return;
+            }
+            
+            try {
+                addLogEntry(`开始直接运行任务: ${task}`, 'status');
+                
+                const response = await fetch('http://localhost:8000/run_task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cdp_url: cdpUrl,
+                        model: model,
+                        host: host,
+                        task: task,
+                        max_steps: parseInt(maxSteps),
+                        headless: true,
+                        verbose: false
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry(`任务执行完成: ${data.message}`, 'status');
+                } else {
+                    addLogEntry(`任务执行失败: ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                addLogEntry(`执行任务异常: ${error}`, 'error');
+            }
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            addLogEntry('页面加载完成，等待操作...', 'log');
+        });
+    </script>
+</body>
+</html>

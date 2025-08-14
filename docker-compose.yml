@@ -1,0 +1,32 @@
+services:
+  ollama:
+    network_mode: host
+    image: ollama/ollama
+    ports:
+      - "21434:11434"
+    entrypoint: ["/bin/sh", "-c"]
+    runtime: nvidia
+    command:
+      - |
+        ollama serve &
+        sleep 5
+        ollama pull qwen2.5:7b
+        ollama pull mxbai-embed-large
+        wait
+    volumes:
+      - ./models:/root/.ollama/models
+
+  browser-use:
+    network_mode: host
+    image: hyperagi/browser-use
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    # 简单的健康检查
+    healthcheck:
+      test: ["CMD", "python", "-c", "print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

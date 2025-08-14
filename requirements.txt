@@ -1,0 +1,25 @@
+# Browser-Use 相关依赖
+browser-use==0.5.11
+
+# 环境变量管理
+python-dotenv==1.1.1
+
+# 异步支持
+aiohttp==3.12.15
+
+# HTTP请求库
+requests==2.32.4
+
+# Playwright（浏览器自动化）
+playwright==1.54.0
+
+# 其他可能需要的依赖
+typing-extensions==4.14.1
+
+# FastAPI 相关依赖
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.11.7
+
+# WebSocket 相关依赖
+websockets==13.0
