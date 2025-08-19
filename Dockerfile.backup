@@ -1,4 +1,4 @@
-# 使用Python 3.11官方镜像
+# 备用Dockerfile - 使用最小依赖配置
 FROM python:3.11-slim
 
 # 设置工作目录
@@ -9,25 +9,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
 
-# 分步安装系统依赖，避免一次性安装过多包
+# 安装最小系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     wget \
     gnupg \
     ca-certificates \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# 安装字体包
-RUN apt-get update && apt-get install -y --no-install-recommends \
+    # 最小字体包
     fonts-liberation \
-    fonts-noto-color-emoji \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# 安装核心系统依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
+    # 核心系统依赖（最小集）
     libnss3 \
     libnspr4 \
     libatk-bridge2.0-0 \
@@ -55,12 +46,14 @@ COPY requirements.txt /app/requirements.txt
 # 安装Python依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 安装Playwright浏览器（最小安装，跳过依赖检查）
+RUN playwright install chromium --with-deps=false
 
 # 复制应用代码
-COPY run_browser_use.py /app/run_browser_use.py
+COPY test_calendar.py /app/test_calendar.py
 
 # 暴露端口
 EXPOSE 8080
 
 # 运行应用
-CMD ["python", "run_browser_use.py"]
+CMD ["python", "test_calendar.py"]

@@ -1,25 +1,26 @@
-# Browser-Use 相关依赖
+# Browser-Use 核心依赖
 browser-use==0.5.11
+
+# Ollama支持
+ollama>=0.1.0
+
+# OpenAI兼容接口支持
+openai>=1.0.0
 
 # 环境变量管理
 python-dotenv==1.1.1
 
-# 异步支持
-aiohttp==3.12.15
-
-# HTTP请求库
-requests==2.32.4
-
-# Playwright（浏览器自动化）
-playwright==1.54.0
-
-# 其他可能需要的依赖
-typing-extensions==4.14.1
-
-# FastAPI 相关依赖
+# FastAPI 核心依赖
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 pydantic==2.11.7
 
-# WebSocket 相关依赖
-websockets==13.0
+# HTTP请求支持
+requests>=2.25.0
+
+# 测试框架
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# Playwright支持
+playwright>=1.40.0

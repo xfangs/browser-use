@@ -289,7 +289,6 @@ class MultiAgentManager:
             task=request.task,
             llm=llm,
             verbose=request.verbose,
-            use_vision=False,
             headless=request.headless,
             max_steps=request.max_steps,
             browser_session=browser_session

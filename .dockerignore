@@ -35,8 +35,8 @@ Thumbs.db
 
 # 测试文件
 tests/
-test_*.py
-*_test.py
+# test_*.py  # 注释掉，因为test_calendar.py是主要应用文件
+# *_test.py
 
 # 文档
 README.md

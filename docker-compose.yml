@@ -4,6 +4,19 @@ services:
     image: ollama/ollama
     ports:
       - "21434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+      - OLLAMA_KEEP_ALIVE=5m
+      - OLLAMA_MODEL_TIMEOUT=0
+      - OLLAMA_MAX_LOADED_MODELS=10
+      - OLLAMA_MODEL_LOAD_TIMEOUT=300s
+      - OLLAMA_MODEL_UNLOAD_TIMEOUT=0
+      - OLLAMA_MODEL_LOAD_POLICY=keep
+      - OLLAMA_MODEL_PERSISTENCE=true
+      - OLLAMA_MODEL_LOAD_RETRY_ATTEMPTS=3
+      - OLLAMA_MODEL_LOAD_RETRY_DELAY=5s
+      - OLLAMA_MODEL_LOAD_PREFETCH=true
     entrypoint: ["/bin/sh", "-c"]
     runtime: nvidia
     command:
@@ -11,6 +24,7 @@ services:
         ollama serve &
         sleep 5
         ollama pull qwen2.5:7b
+        ollama pull llama2:7b
         ollama pull mxbai-embed-large
         wait
     volumes:
@@ -22,7 +36,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEEPSEEK_API_KEY=sk-3f9232e50c6c40efb48c1121478fd71a
     # 简单的健康检查
     healthcheck:
       test: ["CMD", "python", "-c", "print('OK')"]
@@ -30,3 +44,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+  easytier:
+    image: easytier/easytier:latest
+    labels:
+      com.centurylinklabs.watchtower.enable: 'true'
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - TZ=Asia/Shanghai
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./easytier:/root
+      - ./machine-id:/etc/machine-id:ro
+    command: -d --network-name mossai --network-secret mossai@2868 -p tcp://43.159.42.232:11010        

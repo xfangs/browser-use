@@ -1,6 +1,13 @@
-# Browser-Use Multi-Agent HTTP API
+# Browser-Use Multi-Agent HTTP API (DeepSeek 版本)
 
-这是一个基于 Browser-Use 的多 Agent HTTP 接口服务，支持创建、管理和运行多个浏览器自动化 Agent。
+这是一个基于 Browser-Use 的多 Agent HTTP 接口服务，使用 **DeepSeek LLM** 提供强大的 AI 推理能力，支持创建、管理和运行多个浏览器自动化 Agent。
+
+## 🆕 最新更新
+
+- ✅ **已迁移到 DeepSeek LLM** - 告别本地 Ollama，享受云端 AI 能力
+- 🚀 **更快的推理速度** - 云端 GPU 加速，响应更迅速
+- 🌐 **无需本地部署** - 直接使用 DeepSeek API 服务
+- 💰 **成本可控** - 按使用量付费，无需维护本地资源
 
 ## 功能特性
 
@@ -10,14 +17,62 @@
 - 🔄 可配置的浏览器会话和 LLM 实例
 - 📝 灵活的任务参数配置
 - 🏥 健康检查接口
+- 🤖 **DeepSeek LLM 集成** - 强大的 AI 推理能力
 
-## 安装依赖
+## 快速开始
+
+### 1. 获取 DeepSeek API 密钥
+
+1. 访问 [DeepSeek 官网](https://platform.deepseek.com/)
+2. 注册账号并登录
+3. 在控制台中创建 API 密钥
+4. 复制 API 密钥
+
+### 2. 设置环境变量
+
+#### Windows PowerShell
+
+```powershell
+$env:DEEPSEEK_API_KEY="your-actual-api-key-here"
+```
+
+#### Windows CMD
+
+```cmd
+set DEEPSEEK_API_KEY=your-actual-api-key-here
+```
+
+#### Linux/Mac
+
+```bash
+export DEEPSEEK_API_KEY="your-actual-api-key-here"
+```
+
+### 3. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 启动服务
+### 4. 启动 Chrome 调试模式
+
+```bash
+chrome --remote-debugging-port=9222
+```
+
+### 5. 启动服务
+
+#### 使用启动脚本（推荐）
+
+```bash
+# Windows
+start_deepseek.bat
+
+# PowerShell
+.\start_deepseek.ps1
+```
+
+#### 直接运行
 
 ```bash
 python run_browser_use.py
@@ -38,8 +93,8 @@ python run_browser_use.py
 ```json
 {
   "cdp_url": "http://127.0.0.1:9222",
-  "model": "qwen2.5:7b",
-  "host": "http://127.0.0.1:11434",
+  "model": "deepseek-chat",
+  "api_key": "your-deepseek-api-key",
   "task": "前往百度搜索人工智能相关信息",
   "max_steps": 20,
   "headless": false,
@@ -89,18 +144,6 @@ python run_browser_use.py
 
 获取当前所有活跃的 Agent 列表。
 
-**响应：**
-
-```json
-{
-  "success": true,
-  "message": "当前有 2 个活跃Agent",
-  "result": {
-    "agents": ["agent_1_1234567890", "agent_2_1234567891"]
-  }
-}
-```
-
 ### 5. 移除 Agent
 
 **DELETE** `/remove_agent/{agent_id}`
@@ -117,119 +160,95 @@ python run_browser_use.py
 
 **WebSocket** `/ws/{agent_id}`
 
-通过 WebSocket 实时监控指定 Agent 的推理过程。
+实时监控指定 Agent 的执行过程。
 
-**连接示例：**
+## 配置说明
 
-```javascript
-const ws = new WebSocket("ws://localhost:8000/ws/agent_1_1234567890");
-ws.onmessage = function (event) {
-  const data = JSON.parse(event.data);
-  console.log("收到消息:", data);
-};
-```
+### 环境变量
 
-**消息类型：**
+| 变量名              | 说明                  | 默认值                   |
+| ------------------- | --------------------- | ------------------------ |
+| `DEEPSEEK_API_KEY`  | DeepSeek API 密钥     | 必需                     |
+| `DEEPSEEK_BASE_URL` | DeepSeek API 基础 URL | https://api.deepseek.com |
+| `CHROME_DEBUG_PORT` | Chrome 调试端口       | 9222                     |
+| `LOG_LEVEL`         | 日志级别              | INFO                     |
 
-- `connection`: 连接状态消息
-- `status`: Agent 状态更新
-- `log`: 推理过程日志
-- `step`: 执行步骤信息
-- `error`: 错误信息
-- `warning`: 警告信息
-- `pong`: 心跳响应
+### 模型参数
 
-## 使用示例
+| 参数          | 说明              | 默认值           |
+| ------------- | ----------------- | ---------------- |
+| `model`       | 使用的模型名称    | deepseek-chat    |
+| `temperature` | 生成温度          | 0.7              |
+| `max_tokens`  | 最大生成 token 数 | 根据模型自动设置 |
 
-### 使用 curl 创建并运行 Agent
+## 前置条件
 
-```bash
-# 1. 创建Agent
-curl -X POST "http://localhost:8000/create_agent" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cdp_url": "http://127.0.0.1:9222",
-    "model": "qwen2.5:7b",
-    "host": "http://127.0.0.1:11434",
-    "task": "前往百度搜索人工智能相关信息"
-  }'
+1. **DeepSeek API 密钥**: 有效的 DeepSeek API 密钥
+2. **Chrome 浏览器**: 以调试模式启动
+   ```bash
+   chrome --remote-debugging-port=9222
+   ```
+3. **网络连接**: 能够访问 DeepSeek API 服务
 
-# 2. 运行Agent（使用返回的agent_id）
-curl -X POST "http://localhost:8000/run_agent/agent_1_1234567890"
+## 与 Ollama 版本的区别
 
-# 3. 直接运行任务
-curl -X POST "http://localhost:8000/run_task" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cdp_url": "http://127.0.0.1:9222",
-    "model": "qwen2.5:7b",
-    "host": "http://127.0.0.1:11434",
-    "task": "前往百度搜索人工智能相关信息"
-  }'
-```
+| 功能     | Ollama 版本    | DeepSeek 版本 |
+| -------- | -------------- | ------------- |
+| LLM 服务 | 本地部署       | 云端 API      |
+| 模型管理 | 需要下载模型   | 无需管理模型  |
+| 推理速度 | 依赖本地硬件   | 云端 GPU 加速 |
+| 维护成本 | 需要维护服务器 | 按使用量付费  |
+| 扩展性   | 受本地资源限制 | 云端弹性扩展  |
 
-### 使用 Python 客户端
+## 故障排除
 
-```python
-import requests
-import json
+### 常见问题
 
-# 创建Agent
-response = requests.post(
-    "http://localhost:8000/create_agent",
-    json={
-        "cdp_url": "http://127.0.0.1:9222",
-        "model": "qwen2.5:7b",
-        "host": "http://127.0.0.1:11434",
-        "task": "前往百度搜索人工智能相关信息"
-    }
-)
+1. **API 密钥错误**
 
-agent_data = response.json()
-agent_id = agent_data["result"]["agent_id"]
+   - 确保环境变量正确设置
+   - 检查 API 密钥是否有效
+   - 验证账户余额
 
-# 运行Agent
-run_response = requests.post(f"http://localhost:8000/run_agent/{agent_id}")
-result = run_response.json()
-print(result["result"])
-```
+2. **网络连接问题**
 
-## 参数说明
+   - 检查网络连接
+   - 确认防火墙设置
+   - 尝试使用代理
 
-- **cdp_url**: Chrome DevTools Protocol URL，默认 `http://127.0.0.1:9222`
-- **model**: Ollama 模型名称，默认 `qwen2.5:7b`
-- **host**: Ollama 服务地址，默认 `http://127.0.0.1:11434`
-- **task**: 任务描述（必须参数）
-- **max_steps**: 最大执行步骤，默认 20
-- **headless**: 是否无头模式，默认 false
-- **verbose**: 是否启用详细日志，默认 true
+3. **浏览器连接失败**
+   - 确保 Chrome 以调试模式启动
+   - 检查端口是否被占用
+   - 验证 Chrome 版本兼容性
 
-## 注意事项
+### 调试模式
 
-1. 确保 Chrome 浏览器已启动并开启远程调试模式
-2. 确保 Ollama 服务正在运行
-3. 每个 Agent 使用独立的浏览器会话和 LLM 实例
-4. 任务完成后建议及时清理不需要的 Agent 以释放资源
-5. WebSocket 连接支持多客户端同时监控同一个 Agent
-6. 可以通过浏览器打开 `websocket_monitor.html` 进行可视化监控
-
-## 监控工具
-
-### WebSocket 客户端测试
+设置更详细的日志级别：
 
 ```bash
-python websocket_client.py
+$env:LOG_LEVEL="DEBUG"
+python run_browser_use.py
 ```
 
-### 可视化监控界面
+## 性能优化
 
-在浏览器中打开 `websocket_monitor.html` 文件，可以：
+1. **批量请求**: 合理设置`max_steps`参数
+2. **缓存策略**: 利用 browser-use 的会话复用功能
+3. **并发控制**: 避免同时运行过多任务
+4. **API 调用优化**: 合理设置 temperature 和 max_tokens 参数
 
-- 创建和管理 Agent
-- 实时监控推理过程
-- 查看详细的执行日志
-- 可视化操作界面
+## 安全注意事项
 
-## API 文档
+1. **API 密钥保护**: 不要在代码中硬编码 API 密钥
+2. **环境隔离**: 为不同环境使用不同的 API 密钥
+3. **访问控制**: 定期轮换 API 密钥
+4. **监控使用**: 监控 API 调用量和费用
+5. **网络安全**: 确保网络连接安全
 
-启动服务后，访问 `http://localhost:8000/docs` 查看完整的 API 文档（Swagger UI）。
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 许可证
+
+MIT License
