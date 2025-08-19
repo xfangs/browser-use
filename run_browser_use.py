@@ -14,6 +14,18 @@ from browser_use import Agent, BrowserSession
 from browser_use.llm import ChatOllama
 import uvicorn
 
+# 超时配置常量
+TASK_CONFIG = {
+    "task_timeout": 1800,  # 任务总超时时间（秒）- 30分钟
+    "long_task_timeout": 3600,  # 长任务超时时间（秒）- 60分钟
+    "short_task_timeout": 600  # 短任务超时时间（秒）- 10分钟
+}
+
+AGENT_CONFIG = {
+    "max_steps": 100,  # 最大执行步数
+    "step_timeout": 60,  # 单步超时时间（秒）
+}
+
 # 设置日志
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -274,10 +286,21 @@ class MultiAgentManager:
                 with contextlib.redirect_stdout(TeeLoggerStream(sys.stdout, self.agent_id)), \
                      contextlib.redirect_stderr(TeeLoggerStream(sys.stderr, self.agent_id)):
                     try:
-                        result = await super().run()
+                        # 获取超时时间，优先使用请求中的timeout，否则使用配置文件中的默认值
+                        timeout = getattr(self, 'timeout', TASK_CONFIG["task_timeout"])
+                        logger.debug(f"Agent {self.agent_id} 使用超时时间: {timeout}秒")
+                        
+                        # 在agent推理过程中应用超时控制
+                        result = await asyncio.wait_for(super().run(), timeout=timeout)
+                        
                         logger.debug(f"Agent {self.agent_id} 运行完成，结果: {result}")
                         broadcast_log_message(f"Agent {self.agent_id} 运行完成: {result}", "status", self.agent_id)
                         return result
+                    except asyncio.TimeoutError:
+                        error_msg = f"Agent {self.agent_id} 推理超时（{timeout}秒）"
+                        logger.error(error_msg)
+                        broadcast_log_message(error_msg, "error", self.agent_id)
+                        raise
                     except Exception as e:
                         logger.error(f"Agent {self.agent_id} 运行失败: {e}")
                         broadcast_log_message(f"Agent {self.agent_id} 运行失败: {str(e)}", "error", self.agent_id)
@@ -294,6 +317,11 @@ class MultiAgentManager:
             max_steps=request.max_steps,
             browser_session=browser_session
         )
+        
+        # 设置agent的超时时间
+        timeout = getattr(request, 'timeout', TASK_CONFIG["task_timeout"])
+        agent.timeout = timeout
+        debug(f"Agent {agent_id} 超时时间设置为: {timeout}秒")
         
         self.active_agents[agent_id] = agent
         debug(f"Agent {agent_id} 已创建")
@@ -414,7 +442,9 @@ async def run_agent(agent_id: str):
         broadcast_log_message(f"开始运行Agent {agent_id}...", "status", agent_id)
         
         debug(f"开始运行Agent {agent_id}...")
-        result = await asyncio.wait_for(agent.run(), timeout=300.0)
+        # 使用配置文件中的超时时间，如果没有设置则使用默认值
+        timeout = getattr(request, 'timeout', TASK_CONFIG["task_timeout"])
+        result = await asyncio.wait_for(agent.run(), timeout=timeout)
         
         await websocket_manager.send_message(
             agent_id,
@@ -466,7 +496,7 @@ async def list_agents():
             error=str(e)
         )
 
-@app.delete("/remove_agent/{agent_id}", response_model=AgentResponse)
+@app.get("/remove_agent/{agent_id}", response_model=AgentResponse)
 async def remove_agent(agent_id: str):
     try:
         await websocket_manager.send_message(
@@ -513,7 +543,9 @@ async def run_task(request: AgentRequest):
         async def execute_task():
             try:
                 debug(f"开始运行任务Agent {agent_id}...")
-                result = await asyncio.wait_for(agent.run(), timeout=300.0)
+                # 使用agent的超时时间设置
+                timeout = getattr(agent, 'timeout', TASK_CONFIG["task_timeout"])
+                result = await asyncio.wait_for(agent.run(), timeout=timeout)
                 
                 await websocket_manager.send_message(
                     agent_id,
